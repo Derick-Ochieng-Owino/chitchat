@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div>Great question 👌
+Here’s a **detailed breakdown of the actual tech stack used to build and run WhatsApp**, based on engineering talks, blog posts, and reverse-engineering efforts. While some parts have evolved over time, the **core technologies are well-known**:
+
+---
+
+## 🧠 **1. Programming Languages**
+
+| Layer                | Language                | Purpose                                                                                                                                                                                             |
+| -------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Server backend**   | **Erlang**              | ✅ Core messaging engine — handles millions of concurrent connections efficiently. Erlang’s lightweight processes and fault-tolerance were a key reason WhatsApp could run with a tiny backend team. |
+| **Client (Android)** | **Java / Kotlin**       | Main app logic and UI. Older versions were Java; newer builds integrate Kotlin.                                                                                                                     |
+| **Client (iOS)**     | **Objective-C / Swift** | WhatsApp for iPhone was originally Objective-C; newer features are increasingly Swift.                                                                                                              |
+| **Web**              | **JavaScript (React)**  | WhatsApp Web uses React for UI and WebSockets for real-time sync with the phone.                                                                                                                    |
+| **Cryptography**     | C / C++ libraries       | Signal Protocol (libsignal) is implemented in C/C++ and wrapped for Android/iOS.                                                                                                                    |
+
+---
+
+## 🧱 **2. Backend & Infrastructure**
+
+| Component            | Technology                                                             |
+| -------------------- | ---------------------------------------------------------------------- |
+| **Messaging server** | **Erlang** (custom built, extremely optimized for real-time messaging) |
+| **Databases**        | - **FreeBSD UFS + in-memory storage** (original)                       |
+
+* Later **Mnesia** (Erlang’s DB) for some parts
+* **MySQL** for metadata & user/account info (sharded & replicated at scale) |
+  | **Message Queue** | Internal Erlang processes + custom routing; Facebook integration later added internal MQ systems |
+  | **Caching** | **FreeBSD memory / internal Erlang ETS tables** for ultra-low latency lookups |
+  | **File Storage** | Originally **local FreeBSD servers**, later migrated to **Facebook’s internal object storage / CDN** for media (photos, videos, voice notes) |
+  | **Media Delivery** | Facebook CDN + encrypted links |
+
+---
+
+## 🌐 **3. Networking**
+
+| Purpose                 | Tech                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transport**           | **Custom TCP protocol** built on Erlang sockets (not HTTP). It’s highly optimized to keep persistent, low-bandwidth connections even on weak mobile networks. |
+| **Web client sync**     | WebSocket between browser and phone                                                                                                                           |
+| **Voice & video calls** | **WebRTC stack** + custom signaling over WhatsApp protocol                                                                                                    |
+| **NAT traversal**       | STUN/TURN servers for call connectivity                                                                                                                       |
+| **Push notifications**  | FCM (Android) + APNs (iOS)                                                                                                                                    |
+
+---
+
+## 🔐 **4. Security / Encryption**
+
+| Feature            | Tech                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **E2EE for chats** | **Signal Protocol** (X3DH + Double Ratchet). WhatsApp integrated Signal’s libsignal in 2014–2016 for all messages. |
+| **E2EE for calls** | **SRTP/DTLS** derived from Signal key exchange                                                                     |
+| **Backups**        | Client-side encryption introduced later (AES-GCM + user passphrase)                                                |
+| **Key storage**    | Only on device — servers don’t store private keys                                                                  |
+
+---
+
+## 📱 **5. Frontend / Mobile Stack**
+
+| Platform     | Tech                                                                        |
+| ------------ | --------------------------------------------------------------------------- |
+| **Android**  | Java/Kotlin + native libraries for crypto & media; SQLite for local storage |
+| **iOS**      | Objective-C / Swift + CoreData / SQLite                                     |
+| **UI**       | Custom native UI — no cross-platform frameworks used                        |
+| **Local DB** | SQLite + custom binary message store (for performance)                      |
+| **Web**      | React + Service Workers + IndexedDB for caching messages locally            |
+
+---
+
+## ☁️ **6. Infrastructure / Deployment**
+
+| Component          | Tech                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| **OS**             | **FreeBSD** — WhatsApp famously used FreeBSD for most backend servers because of its reliability and network stack performance. |
+| **Server count**   | Initially ~200 servers handled 450M users (before Facebook acquisition)                                                         |
+| **Load balancing** | Custom Erlang routing + DNS load balancing + Facebook edge network after acquisition                                            |
+| **Monitoring**     | Custom tools + later Facebook’s monitoring systems                                                                              |
+| **Scaling**        | Horizontal scaling with Erlang clusters, MySQL sharding, and CDN for media                                                      |
+
+---
+
+## 📞 **7. Voice & Video Call Stack**
+
+* **Signaling**: WhatsApp custom protocol over persistent TCP
+* **Media**: WebRTC stack (encoders, jitter buffers, codecs) — uses Opus codec for audio, VP8/H.264 for video.
+* **Relay**: TURN servers for fallback when peer-to-peer fails
+* **Encryption**: DTLS-SRTP negotiated using Signal session keys
+
+---
+
+## 🧪 **8. Notable Architectural Choices**
+
+* **Erlang over Java/Go**: Because Erlang’s actor model is perfect for millions of concurrent socket connections with minimal memory.
+* **FreeBSD** for server OS because of efficient kernel networking and memory management.
+* **Minimal server logic**: Servers never store plaintext messages, only encrypted payloads and routing info.
+* **Client-centric encryption**: All E2EE happens on devices — servers act as “dumb pipes”.
+* **Custom lightweight binary protocol**: Saves bandwidth in low-signal regions (key for emerging markets).
+
+---
+
+## 📝 Quick Summary Table
+
+| Layer              | WhatsApp Stack                                        |
+| ------------------ | ----------------------------------------------------- |
+| Mobile             | Android (Java/Kotlin), iOS (Objective-C/Swift)        |
+| Web                | React, WebSocket                                      |
+| Backend            | Erlang, FreeBSD, MySQL, Mnesia                        |
+| Messaging protocol | Custom TCP + Erlang processes                         |
+| Encryption         | Signal Protocol (libsignal), DTLS-SRTP                |
+| Calls              | WebRTC stack                                          |
+| Media              | Facebook CDN, encrypted blobs                         |
+| Push               | FCM + APNs                                            |
+| Infra              | FreeBSD servers, later integrated with Facebook infra |
+
+---
+
+### 📌 Key Takeaways
+
+* ✅ **Erlang + FreeBSD** was the secret sauce: tiny team, huge scalability.
+* ✅ **Signal Protocol** powers all message & call encryption.
+* ✅ **Native mobile apps**, not cross-platform frameworks.
+* ✅ **Custom protocol** designed for low latency and low data usage.
+* ✅ **Horizontal scale** using sharded MySQL and Erlang clustering.
+
+---
+
+Would you like me to give you a **modern open-source tech stack** that can replicate WhatsApp’s functionality (like using Flutter + Go + WebRTC + Signal Protocol), so you can build your own version?
+</div>
+</body>
+</html>
